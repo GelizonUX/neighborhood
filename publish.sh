@@ -10,9 +10,11 @@ export PATH="$PWD/../Tools/gh:$PATH"
 "$GODOT" --headless --path . --import > /dev/null 2>&1 || true
 "$GODOT" --headless --path . --export-release "Web" docs/index.html 2>&1 | grep -iE "^error" || true
 test -s docs/index.wasm || { echo "Web export failed"; exit 1; }
-find . -name '._*' -not -path './.git/*' -delete
+# macOS leaves '._' companion files on this disk; they confuse git, so clear them.
+find . -name '._*' -delete
 
 git add -A
 git commit -q -m "${1:-Update game}" || echo "Nothing new to commit"
 git push -q
-echo "Published."
+find .git -name '._*' -delete
+echo "Published. The play link updates in a minute or two."
