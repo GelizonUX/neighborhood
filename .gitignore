@@ -1,0 +1,7 @@
+.godot/
+*.translation
+export_presets.cfg
+.DS_Store
+._*
+qa_out/
+.claude/
