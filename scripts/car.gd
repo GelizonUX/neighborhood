@@ -16,12 +16,17 @@ const STEER_SPEED := 2.2
 const TOP_SPEED := 30.0         ## m/s forwards (about 110 km/h)
 const TOP_REVERSE := 7.0
 
+const SLEEP_DISTANCE := 130.0   ## parked cars this far from the camera stop simulating
+const HIDE_DISTANCE := 300.0    ## and this far away they are not drawn
+
 const WHEEL_NAMES := ["wheel-front-left", "wheel-front-right", "wheel-back-left", "wheel-back-right"]
 
 var throttle := 0.0      ## -1 (reverse) to 1 (forwards)
 var steer_input := 0.0   ## -1 (right) to 1 (left)
 var handbrake := false
 var driver: Node = null
+
+var _tick := 0
 
 
 ## Builds the car from a model file. Call before adding it to the scene.
@@ -32,6 +37,7 @@ func setup(model_path: String) -> void:
 	var s := LENGTH / body_box.size.z
 
 	mass = 1100.0
+	freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = Vector3(0.0, 0.3, 0.0)
 	add_to_group("cars")
@@ -83,6 +89,7 @@ func setup(model_path: String) -> void:
 ## the camera). The wheels stay visible.
 func set_body_visible(shown: bool) -> void:
 	get_node("Model").visible = shown
+	freeze = false
 
 
 ## Speed along the direction the car is pointing, in m/s (negative in reverse).
@@ -90,7 +97,26 @@ func forward_speed() -> float:
 	return linear_velocity.dot(global_basis.z)
 
 
+## A city full of parked cars would waste a lot of physics time, so an empty
+## car far from the camera is frozen in place until the camera comes back.
+func _update_sleep() -> void:
+	var camera := get_viewport().get_camera_3d()
+	var distance := 0.0 if camera == null else global_position.distance_to(camera.global_position)
+	freeze = distance > SLEEP_DISTANCE and driver == null
+	if driver != null:
+		return      # the player's view decides what is shown while driving
+	get_node("Model").visible = distance < HIDE_DISTANCE
+	for child in get_children():
+		if child is VehicleWheel3D:
+			(child as VehicleWheel3D).visible = get_node("Model").visible
+
+
 func _physics_process(delta: float) -> void:
+	_tick += 1
+	if _tick % 45 == 1:
+		_update_sleep()
+	if freeze:
+		return
 	var speed := forward_speed()
 	if driver == null:
 		engine_force = 0.0

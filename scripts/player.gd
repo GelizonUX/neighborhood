@@ -18,6 +18,7 @@ const MODEL_HEIGHT := 0.7         ## height of the Kenney mini character before 
 const FEET_OFFSET := -0.9         ## the collision capsule is 1.8 m tall, centred on the player
 
 @export var camera_rig_path: NodePath
+@export var city_path: NodePath
 
 @onready var rig: Node3D = get_node(camera_rig_path)
 @onready var body: Node3D = $Body
@@ -38,9 +39,21 @@ func _ready() -> void:
 	_add_key_action("jump", KEY_SPACE)
 	_add_key_action("run", KEY_SHIFT)
 	_add_key_action("interact", KEY_E)
+	add_to_group("player")
 	_load_character()
 	rig.view_changed.connect(_on_view_changed)
 	rig.follow(self, rig.FOOT_VIEWS, false)
+
+	# Wait for the city to finish building, then start on its pavement.
+	var city := get_node_or_null(city_path)
+	if city:
+		set_physics_process(false)
+		if not city.is_built:
+			await city.built
+		global_position = city.spawn_point()
+		rig.yaw = deg_to_rad(-90.0)      # looking east, towards downtown
+		body.rotation.y = rig.yaw
+		set_physics_process(true)
 
 
 func _add_key_action(action: String, key: Key) -> void:
